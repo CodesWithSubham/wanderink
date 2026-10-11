@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';
+import { useAuth } from '@/components/providers/AuthProvider';
 import { Mail, Lock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -20,11 +21,18 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const { toast } = useToast();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace(callbackUrl);
+    }
+  }, [isAuthenticated, authLoading, callbackUrl, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

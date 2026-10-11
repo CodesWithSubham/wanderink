@@ -7,8 +7,6 @@ import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { StoryReader } from '@/components/adventure/StoryReader';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
 import { useAuth } from '@/components/providers/AuthProvider';
 import Link from 'next/link';
 
@@ -110,13 +108,5 @@ function StoryPageContent() {
 }
 
 export default function StoryPage() {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1">
-        <StoryPageContent />
-      </main>
-      <Footer />
-    </div>
-  );
+  return <StoryPageContent />;
 }

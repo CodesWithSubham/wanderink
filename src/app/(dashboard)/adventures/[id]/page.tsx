@@ -4,8 +4,6 @@ import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { AdventureCard } from '@/components/adventure/AdventureCard';
 import { AdventureForm } from '@/components/adventure/AdventureForm';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
 import { useAuth, AuthGuard } from '@/components/providers/AuthProvider';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -230,16 +228,10 @@ function AdventureDetailContent() {
 
 export default function AdventureDetailPage() {
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8">
-          <AuthGuard>
-            <AdventureDetailContent />
-          </AuthGuard>
-        </div>
-      </main>
-      <Footer />
+    <div className="mx-auto max-w-4xl">
+      <AuthGuard>
+        <AdventureDetailContent />
+      </AuthGuard>
     </div>
   );
 }

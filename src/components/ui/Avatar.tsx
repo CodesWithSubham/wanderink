@@ -36,6 +36,10 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
         .slice(0, 2);
     };
 
+    const displayInitial = fallback
+      ? (fallback.trim().length > 2 ? getInitials(fallback) : fallback.trim().toUpperCase())
+      : (alt ? getInitials(alt) : '?');
+
     const showFallback = !src || imageError;
 
     return (
@@ -43,7 +47,7 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
         ref={ref}
         className={cn(
           'inline-flex items-center justify-center font-medium bg-slate-100 dark:bg-slate-800',
-          'overflow-hidden border border-slate-200 dark:border-slate-700',
+          'overflow-hidden border border-slate-200 dark:border-slate-700 select-none',
           sizes[size],
           shapes[shape],
           className
@@ -58,8 +62,8 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
             className="w-full h-full object-cover"
           />
         ) : (
-          <span className="text-slate-600 dark:text-slate-400">
-            {fallback || (alt ? getInitials(alt) : '?')}
+          <span className="text-slate-600 dark:text-slate-400 font-semibold">
+            {displayInitial}
           </span>
         )}
       </div>

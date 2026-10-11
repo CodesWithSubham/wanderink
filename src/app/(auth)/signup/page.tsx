@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';
+import { useAuth } from '@/components/providers/AuthProvider';
 import { Mail, Lock, User, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +15,7 @@ import { useToast } from '@/components/ui/Toast';
 export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -21,6 +23,12 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace('/dashboard');
+    }
+  }, [isAuthenticated, authLoading, router]);
 
   const validateForm = () => {
     if (!name.trim()) {

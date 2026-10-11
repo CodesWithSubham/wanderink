@@ -74,13 +74,23 @@ export function Header() {
               <DropdownMenu>
                 <DropdownMenu.Trigger asChild>
                   <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full">
-                    <Avatar src={user.image ?? undefined} alt={user.name} fallback={user.name} size="sm" />
+                    <Avatar
+                      src={user.image ?? undefined}
+                      alt={user.name}
+                      fallback={(user.name?.trim().charAt(0) || user.email?.trim().charAt(0) || 'U').toUpperCase()}
+                      size="sm"
+                    />
                   </Button>
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Content align="end" className="w-48">
                   <DropdownMenu.Label className="px-4 py-1">
                     <div className="flex items-center gap-3">
-                      <Avatar src={user.image ?? undefined} alt={user.name} fallback={user.name} size="sm" />
+                      <Avatar
+                        src={user.image ?? undefined}
+                        alt={user.name}
+                        fallback={(user.name?.trim().charAt(0) || user.email?.trim().charAt(0) || 'U').toUpperCase()}
+                        size="sm"
+                      />
                       <div>
                         <p className="font-medium text-sm">{user.name}</p>
                         <p className="text-xs text-slate-500">{user.email}</p>

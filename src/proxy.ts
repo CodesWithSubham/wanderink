@@ -2,9 +2,8 @@ import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export const runtime = 'nodejs';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   try {
     const session = await auth.api.getSession({
       headers: request.headers,
@@ -12,21 +11,7 @@ export async function middleware(request: NextRequest) {
 
     const pathname = request.nextUrl.pathname;
 
-    // Public paths that don't require authentication
-    const publicPaths = [
-      '/',
-      '/explore',
-      '/story',
-      '/login',
-      '/signup',
-      '/api/auth',
-    ];
-
-    const isPublicPath = publicPaths.some((path) =>
-      pathname === path || pathname.startsWith(path + '/')
-    );
-
-    // Redirect authenticated users away from auth pages
+    // Redirect authenticated users away from auth pages (/login, /signup) to /dashboard
     const authPaths = ['/login', '/signup'];
     const isAuthPath = authPaths.some((path) => pathname === path || pathname.startsWith(path + '/'));
 
@@ -47,8 +32,8 @@ export async function middleware(request: NextRequest) {
 
     return NextResponse.next();
   } catch (error) {
-    console.error('Middleware auth error:', error);
-    // On error, allow the request to continue (fail open for middleware)
+    console.error('Proxy auth error:', error);
+    // On error, allow the request to continue (fail open for proxy)
     return NextResponse.next();
   }
 }
@@ -56,7 +41,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
+     * Match all request paths except for:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
