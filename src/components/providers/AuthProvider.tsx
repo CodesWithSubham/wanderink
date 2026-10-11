@@ -1,84 +1,108 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { authClient } from '@/lib/auth-client';
 
 interface User {
   id: string;
   email: string;
   name: string;
-  image?: string;
+  image?: string | null;
   emailVerified: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Session {
+  user: User;
+  session: {
+    id: string;
+    expiresAt: Date;
+    token: string;
+  };
 }
 
 interface AuthContextType {
   user: User | null;
-  session: { user: User } | null;
+  session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   signOut: () => Promise<void>;
+  refetchSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const fetchSession = async () => {
+    try {
+      const { data, error } = await authClient.getSession();
+      if (data) {
+        setSession(data as Session);
+      } else {
+        setSession(null);
+      }
+    } catch {
+      setSession(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
-
-    async function fetchSession() {
-      try {
-        const res = await fetch('/api/auth/session');
-        if (res.ok) {
-          const data = await res.json();
-          if (mounted) {
-            setUser(data.user);
-          }
-        } else {
-          if (mounted) setUser(null);
-        }
-      } catch {
-        if (mounted) setUser(null);
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
-    }
 
     fetchSession();
 
     // Listen for auth changes via storage event (for multi-tab sync)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'better-auth.session' || e.key === 'better-auth.session.sig') {
-        fetchSession();
+        if (mounted) fetchSession();
       }
     };
 
+    // Also listen for custom auth events
+    const handleAuthChange = () => {
+      if (mounted) fetchSession();
+    };
+
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('better-auth:session-change', handleAuthChange);
 
     return () => {
       mounted = false;
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('better-auth:session-change', handleAuthChange);
     };
   }, []);
 
   const signOut = async () => {
     try {
-      await fetch('/api/auth/signout', { method: 'POST' });
-      setUser(null);
-    } catch {
-      // Ignore error
+      await authClient.signOut();
+      setSession(null);
+      // Dispatch event for other tabs
+      window.dispatchEvent(new Event('better-auth:session-change'));
+    } catch (error) {
+      console.error('Sign out failed:', error);
     }
+  };
+
+  const refetchSession = async () => {
+    await fetchSession();
   };
 
   return (
     <AuthContext.Provider
       value={{
-        user,
-        session: user ? { user } : null,
+        user: session?.user || null,
+        session,
         isLoading,
-        isAuthenticated: !!user,
+        isAuthenticated: !!session?.user,
         signOut,
+        refetchSession,
       }}
     >
       {children}

@@ -4,9 +4,11 @@ import { NextResponse } from 'next/server';
 
 export async function POST() {
   try {
-    await auth.api.signOut({ headers: await headers() });
+    const headersList = await headers();
+    await auth.api.signOut({ headers: headersList });
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (error) {
+    console.error('Sign out error:', error);
     return NextResponse.json({ error: 'Failed to sign out' }, { status: 500 });
   }
 }

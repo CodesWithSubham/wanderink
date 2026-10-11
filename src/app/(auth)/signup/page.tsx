@@ -63,10 +63,11 @@ export default function SignupPage() {
       } else {
         toast({
           title: 'Account created!',
-          description: 'Please check your email to verify your account.',
+          description: 'Welcome to WanderInk!',
           variant: 'success',
         });
-        router.push('/verify-email');
+        router.push('/dashboard');
+        router.refresh();
       }
     } catch {
       setError('An error occurred. Please try again.');
@@ -76,7 +77,7 @@ export default function SignupPage() {
     }
   };
 
-  const passwordStrength = password.length >= 8 ? 'strong' : password.length >= 6 ? 'medium' : 'weak';
+  const passwordStrength = password.length >= 12 ? 'strong' : password.length >= 8 ? 'medium' : 'weak';
 
   return (
     <div>
@@ -145,7 +146,7 @@ export default function SignupPage() {
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {passwordStrength === 'weak' && 'Use at least 8 characters'}
-                    {passwordStrength === 'medium' && 'Good - add more characters'}
+                    {passwordStrength === 'medium' && 'Good password'}
                     {passwordStrength === 'strong' && 'Strong password'}
                   </p>
                 </div>

@@ -5,49 +5,52 @@ import type { NextRequest } from 'next/server';
 export const runtime = 'nodejs';
 
 export async function middleware(request: NextRequest) {
-  const session = await auth.api.getSession({
-    headers: request.headers,
-  });
+  try {
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
 
-  const pathname = request.nextUrl.pathname;
+    const pathname = request.nextUrl.pathname;
 
-  // Public paths that don't require authentication
-  const publicPaths = [
-    '/',
-    '/explore',
-    '/story',
-    '/login',
-    '/signup',
-    '/verify-email',
-    '/forgot-password',
-    '/reset-password',
-    '/api/auth',
-  ];
+    // Public paths that don't require authentication
+    const publicPaths = [
+      '/',
+      '/explore',
+      '/story',
+      '/login',
+      '/signup',
+      '/api/auth',
+    ];
 
-  const isPublicPath = publicPaths.some((path) =>
-    pathname === path || pathname.startsWith(path + '/')
-  );
+    const isPublicPath = publicPaths.some((path) =>
+      pathname === path || pathname.startsWith(path + '/')
+    );
 
-  // Redirect authenticated users away from auth pages
-  const authPaths = ['/login', '/signup', '/verify-email', '/forgot-password', '/reset-password'];
-  const isAuthPath = authPaths.some((path) => pathname === path || pathname.startsWith(path + '/'));
+    // Redirect authenticated users away from auth pages
+    const authPaths = ['/login', '/signup'];
+    const isAuthPath = authPaths.some((path) => pathname === path || pathname.startsWith(path + '/'));
 
-  if (isAuthPath && session?.user) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    if (isAuthPath && session?.user) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    // Protect dashboard and adventure creation routes
+    const protectedPaths = ['/dashboard', '/adventures'];
+    const isProtectedPath = protectedPaths.some((path) =>
+      pathname === path || pathname.startsWith(path + '/')
+    );
+
+    if (isProtectedPath && !session?.user) {
+      const callbackUrl = encodeURIComponent(pathname);
+      return NextResponse.redirect(new URL(`/login?callbackUrl=${callbackUrl}`, request.url));
+    }
+
+    return NextResponse.next();
+  } catch (error) {
+    console.error('Middleware auth error:', error);
+    // On error, allow the request to continue (fail open for middleware)
+    return NextResponse.next();
   }
-
-  // Protect dashboard and adventure creation routes
-  const protectedPaths = ['/dashboard', '/adventures'];
-  const isProtectedPath = protectedPaths.some((path) =>
-    pathname === path || pathname.startsWith(path + '/')
-  );
-
-  if (isProtectedPath && !session?.user) {
-    const callbackUrl = encodeURIComponent(pathname);
-    return NextResponse.redirect(new URL(`/login?callbackUrl=${callbackUrl}`, request.url));
-  }
-
-  return NextResponse.next();
 }
 
 export const config = {

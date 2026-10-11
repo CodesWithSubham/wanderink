@@ -4,9 +4,11 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    return NextResponse.json({ user: session?.user || null });
-  } catch {
-    return NextResponse.json({ user: null });
+    const headersList = await headers();
+    const session = await auth.api.getSession({ headers: headersList });
+    return NextResponse.json({ user: session?.user || null, session: session?.session || null });
+  } catch (error) {
+    console.error('Get session error:', error);
+    return NextResponse.json({ user: null, session: null });
   }
 }
