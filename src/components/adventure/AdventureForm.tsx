@@ -82,11 +82,11 @@ export function AdventureForm({ onSuccess }: AdventureFormProps) {
   const renderUploadStep = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
-          Step 1: Upload Photos
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1 font-serif">
+          Step 1: Curate Photographs
         </h3>
         <p className="text-slate-600 dark:text-slate-400 text-sm">
-          Select 3-5 photos from your walk. We'll compress them locally before uploading.
+          Select 3–5 observant photographs from your walk. Images are securely compressed on-device before uploading to optimize performance.
         </p>
       </div>
 
@@ -107,50 +107,50 @@ export function AdventureForm({ onSuccess }: AdventureFormProps) {
   const renderReviewStep = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
-          Step 2: Review & Confirm
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1 font-serif">
+          Step 2: Review & Privacy Settings
         </h3>
         <p className="text-slate-600 dark:text-slate-400 text-sm">
-          Your images are ready. Choose visibility and generate your story.
+          Your photographs are uploaded and ready. Configure your visibility preference to begin crafting your story.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {uploadedImages.map((img, index) => (
-          <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+          <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs">
             <img src={img.preview} alt={img.originalName} className="w-full h-full object-cover" />
           </div>
         ))}
       </div>
 
-      <div className="space-y-4">
-        <label className="flex items-center gap-3 cursor-pointer">
+      <div className="space-y-3 pt-2">
+        <label className="flex items-start gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
           <input
             type="radio"
             name="visibility"
             value="private"
             checked={visibility === 'private'}
             onChange={() => setVisibility('private')}
-            className="w-4 h-4 text-emerald-600 border-slate-300 focus:ring-emerald-500"
+            className="w-4 h-4 mt-0.5 text-emerald-600 border-slate-300 focus:ring-emerald-500"
           />
           <div>
-            <p className="font-medium text-slate-900 dark:text-slate-100">Private</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Only you can see this adventure</p>
+            <p className="font-medium text-slate-900 dark:text-slate-100 text-sm">Private Journal</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Restricted to your personal account. Images are secured behind time-limited signed URLs.</p>
           </div>
         </label>
 
-        <label className="flex items-center gap-3 cursor-pointer">
+        <label className="flex items-start gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
           <input
             type="radio"
             name="visibility"
             value="public"
             checked={visibility === 'public'}
             onChange={() => setVisibility('public')}
-            className="w-4 h-4 text-emerald-600 border-slate-300 focus:ring-emerald-500"
+            className="w-4 h-4 mt-0.5 text-emerald-600 border-slate-300 focus:ring-emerald-500"
           />
           <div>
-            <p className="font-medium text-slate-900 dark:text-slate-100">Public</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Share with the WanderInk community</p>
+            <p className="font-medium text-slate-900 dark:text-slate-100 text-sm">Public Exploration Gallery</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Share with the community. Discoverable by fellow explorers in the public explore feed.</p>
           </div>
         </label>
       </div>
@@ -164,11 +164,11 @@ export function AdventureForm({ onSuccess }: AdventureFormProps) {
       <div className="flex gap-3 pt-4">
         <Button variant="outline" onClick={() => setStep('upload')} className="flex-1">
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
+          Back to Photos
         </Button>
         <Button onClick={handleCreateAdventure} className="flex-1">
           <Sparkles className="w-4 h-4 mr-2" />
-          Generate Story
+          Generate Exploration Story
         </Button>
       </div>
     </div>

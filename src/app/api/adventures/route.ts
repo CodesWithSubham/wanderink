@@ -84,9 +84,19 @@ export async function POST(request: NextRequest) {
     }
 
     const { imageKeys, visibility } = validation.data;
+    const userId = session.user.id;
+
+    // Security check: ensure all uploaded image keys belong to this user
+    const hasInvalidKey = imageKeys.some((key: string) => !key.startsWith(`${userId}/`));
+    if (hasInvalidKey) {
+      return NextResponse.json(
+        { error: 'Unauthorized: image keys must belong to your account' },
+        { status: 403 }
+      );
+    }
 
     const adventure = await Adventure.create({
-      userId: session.user.id,
+      userId,
       title: 'Processing...',
       summary: '',
       story: '',

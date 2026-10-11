@@ -134,6 +134,10 @@ sequenceDiagram
 
 ## ✨ Core Features
 
+- 🌿 **The Mindful Field Journal Ritual**:
+  - Promotes intentional outdoor presence over screen addiction.
+  - Step outside with notifications silenced, pocket your device between sights, and pause only to collect 3–5 observant moments (flora, textures, lighting, scenery).
+  - Designed as an outdoor wellness ritual rather than just an AI demo.
 - 📸 **Smart Photo Ingestion**:
   - Accepts 3–5 outdoor photographs per adventure.
   - Client-side compression using `browser-image-compression` keeps files under 5MB and accelerates uploads.
@@ -266,8 +270,8 @@ Configure the following variables:
 | `NEXT_PUBLIC_APP_URL` | **Yes** | Public-facing URL of the web app | `http://localhost:3000` |
 | `OMNIROUTE_BASE_URL` | **Yes** | Base URL for OpenAI-compatible completions endpoint | `http://your-vm-ip:8000/v1` |
 | `OMNIROUTE_API_KEY` | **Yes** | API key for authenticating with OmniRoute | `sk-omniroute-...` |
-| `VISION_MODEL` | **Yes** | Model identifier for multi-image vision analysis | `qwen2.5-vl-72b` |
-| `STORY_MODEL` | **Yes** | Model identifier for narrative generation | `gemma-2-27b` |
+| `VISION_MODEL` | **Yes** | Model identifier or alias for vision analysis (e.g. `wanderink-vision` or `qwen2.5-vl-72b`) | `wanderink-vision` / `qwen2.5-vl-72b` |
+| `STORY_MODEL` | **Yes** | Model identifier or alias for story generation (e.g. `wanderink-story` or `gemma-2-27b`) | `wanderink-story` / `gemma-2-27b` |
 
 ---
 

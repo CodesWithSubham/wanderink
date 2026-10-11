@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/components/providers/AuthProvider';
 import { AdventureForm } from '@/components/adventure/AdventureForm';
+import { FieldJournalGuide } from '@/components/adventure/FieldJournalGuide';
 
 export default function NewAdventurePage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -25,9 +26,12 @@ export default function NewAdventurePage() {
           New Adventure
         </h1>
         <p className="text-slate-600 dark:text-slate-400">
-          Upload 3-5 photos from your walk and let AI create your story
+          Transform your outdoor observations into an authentic, personalized exploration journal.
         </p>
       </div>
+
+      <FieldJournalGuide />
+
       <AdventureForm />
     </div>
   );

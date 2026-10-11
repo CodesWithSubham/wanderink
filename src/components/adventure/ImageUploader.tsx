@@ -163,30 +163,42 @@ export function ImageUploader({ maxFiles = 5, onUploadComplete, onError }: Image
         accept="image/jpeg,image/png,image/webp"
         multiple
         onChange={handleFileSelect}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        className={cn(
+          files.length === 0 && !uploading
+            ? 'absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10'
+            : 'hidden'
+        )}
         disabled={uploading || files.length >= maxFiles}
         aria-label="Upload images"
       />
 
       {files.length === 0 && !uploading ? (
-        <div className="p-12 text-center">
+        <div className="p-12 text-center pointer-events-none">
           <div className="mx-auto w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
             <Upload className="w-8 h-8 text-slate-400" />
           </div>
-          <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">
-            Drag & drop photos here
+          <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1 font-serif">
+            Drag & drop exploration photographs
           </h3>
-          <p className="text-slate-500 dark:text-slate-400 mb-4">
-            Or click to select 3-5 images (JPEG, PNG, WebP • max 10MB each)
+          <p className="text-slate-500 dark:text-slate-400 mb-4 text-sm">
+            Or select 3–5 images from your walk (JPEG, PNG, or WebP • up to 10MB each)
           </p>
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-            Choose Files
+          <Button
+            type="button"
+            variant="outline"
+            className="pointer-events-auto"
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
+          >
+            Select Photographs
           </Button>
         </div>
       ) : (
         <>
           {/* File previews */}
-          <div className="p-4">
+          <div className="p-4 relative z-20">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
               {files.map((file, index) => (
                 <div key={index} className="relative group aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
@@ -197,8 +209,12 @@ export function ImageUploader({ maxFiles = 5, onUploadComplete, onError }: Image
                   />
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={() => removeFile(index)}
-                      className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center hover:bg-white transition-colors"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFile(index);
+                      }}
+                      className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center hover:bg-white transition-colors cursor-pointer"
                       aria-label="Remove image"
                     >
                       <X className="w-4 h-4 text-slate-600" />
@@ -212,7 +228,11 @@ export function ImageUploader({ maxFiles = 5, onUploadComplete, onError }: Image
 
               {files.length < maxFiles && !uploading && (
                 <button
-                  onClick={() => fileInputRef.current?.click()}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
                   className={cn(
                     'aspect-square rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600',
                     'flex flex-col items-center justify-center gap-2',
@@ -229,26 +249,30 @@ export function ImageUploader({ maxFiles = 5, onUploadComplete, onError }: Image
 
             <div className="flex items-center justify-between">
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                {files.length}/{maxFiles} images
+                {files.length}/{maxFiles} selected
                 {files.length < 3 && (
-                  <span className="text-rose-500 ml-2">• Need at least 3 images</span>
+                  <span className="text-rose-500 ml-2">• Minimum 3 photographs required</span>
                 )}
               </p>
 
               <div className="flex gap-2">
                 <Button
-                  variant="outline"
-                  onClick={handleUpload}
+                  type="button"
+                  variant="primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUpload();
+                  }}
                   disabled={!canUpload || uploading}
                   className="w-full sm:w-auto"
                 >
                   {uploading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Uploading...
+                      Uploading & Optimizing...
                     </>
                   ) : (
-                    'Upload & Continue'
+                    'Upload & Continue to Review'
                   )}
                 </Button>
               </div>

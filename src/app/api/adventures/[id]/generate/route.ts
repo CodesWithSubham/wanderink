@@ -7,6 +7,8 @@ import { analyzeImages } from '@/lib/ai/vision';
 import { generateStory } from '@/lib/ai/story';
 import { NextRequest, NextResponse } from 'next/server';
 
+export const maxDuration = 60;
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -34,8 +36,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    if (adventure.status !== 'processing') {
-      return NextResponse.json({ error: 'Adventure not in processing state' }, { status: 400 });
+    if (adventure.status !== 'processing' && adventure.status !== 'failed') {
+      return NextResponse.json({ error: 'Adventure not in a generatable state' }, { status: 400 });
+    }
+
+    // Reset status to processing if retrying after a previous failure
+    if (adventure.status === 'failed') {
+      adventure.status = 'processing';
+      adventure.generationError = undefined;
+      await adventure.save();
     }
 
     // Create signed URLs for vision analysis (24hr expiry)

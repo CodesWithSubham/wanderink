@@ -35,13 +35,13 @@ const adventureSchema = new Schema<IAdventure>(
     },
     summary: {
       type: String,
-      required: true,
+      default: '',
       trim: true,
       maxlength: 500,
     },
     story: {
       type: String,
-      required: true,
+      default: '',
     },
     highlights: [{
       type: String,
