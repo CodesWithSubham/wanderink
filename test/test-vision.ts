@@ -121,7 +121,9 @@ async function runVisionTest() {
     console.log(`✅ Vision analysis completed in ${elapsedSec}s!\n`);
     console.log('📋 Structured Results:');
     console.log('─'.repeat(40));
-    console.log('• Title Suggestions:');
+    console.log('• What is happening in this photo:');
+    console.log(`   ${result.description}`);
+    console.log('\n• Title Suggestions:');
     result.titleSuggestions.forEach((t) => console.log(`   - "${t}"`));
     console.log(`\n• Mood:\n   ${result.mood}`);
     console.log(`\n• Detected Scenes:\n   ${result.detectedScenes.join(', ')}`);

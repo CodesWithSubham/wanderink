@@ -36,12 +36,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    if (adventure.status !== 'processing' && adventure.status !== 'failed') {
+    if (
+      adventure.status !== 'processing' &&
+      adventure.status !== 'failed' &&
+      adventure.status !== 'completed'
+    ) {
       return NextResponse.json({ error: 'Adventure not in a generatable state' }, { status: 400 });
     }
 
-    // Reset status to processing if retrying after a previous failure
-    if (adventure.status === 'failed') {
+    // Re-running the pipeline always goes back through `processing` so that a page
+    // reload mid-generation resumes the progress screen instead of the old story.
+    if (adventure.status !== 'processing') {
       adventure.status = 'processing';
       adventure.generationError = undefined;
       await adventure.save();
@@ -83,16 +88,36 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           // Step 1: Vision analysis
           sendEvent('vision_start', { totalImages: signedImageUrls.length });
 
-          const visionResults = [];
+          const visionResults: Array<Awaited<ReturnType<typeof analyzeImages>> | null> = [];
           for (let index = 0; index < signedImageUrls.length; index++) {
             const url = signedImageUrls[index];
             try {
               const result = await analyzeImages([url]);
-              sendEvent('vision_progress', { completed: index + 1, total: signedImageUrls.length });
               visionResults.push(result);
+
+              // Ship the actual observations for this photo so the client can
+              // show what the AI is seeing, image by image.
+              sendEvent('vision_progress', {
+                completed: index + 1,
+                total: signedImageUrls.length,
+                imageIndex: index,
+                analysis: {
+                  description: result.description,
+                  mood: result.mood,
+                  scenes: result.detectedScenes.slice(0, 3),
+                  objects: result.detectedObjects.slice(0, 5),
+                  details: result.notableDetails.slice(0, 3),
+                },
+              });
             } catch (error) {
               console.error(`Vision analysis failed for image ${index}:`, error);
               visionResults.push(null);
+              sendEvent('vision_progress', {
+                completed: index + 1,
+                total: signedImageUrls.length,
+                imageIndex: index,
+                failed: true,
+              });
             }
           }
 
@@ -109,15 +134,23 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             mood: validResults.map((r) => r.mood).join(', '),
             notableDetails: validResults.flatMap((r) => r.notableDetails),
             storyElements: validResults.flatMap((r) => r.storyElements),
+            imageDescriptions: visionResults.map(
+              (r) => r?.description ?? 'This photo could not be analyzed in detail.'
+            ),
           };
 
-          // Deduplicate arrays
-          Object.keys(aggregatedAnalysis).forEach((key) => {
-            if (Array.isArray(aggregatedAnalysis[key as keyof typeof aggregatedAnalysis])) {
-              (aggregatedAnalysis[key as keyof typeof aggregatedAnalysis] as string[]) = [
-                ...new Set(aggregatedAnalysis[key as keyof typeof aggregatedAnalysis] as string[]),
-              ];
-            }
+          // Deduplicate the list fields (keep per-photo descriptions untouched so
+          // their order still maps to the uploaded photos)
+          const listFields = [
+            'titleSuggestions',
+            'detectedObjects',
+            'detectedScenes',
+            'notableDetails',
+            'storyElements',
+          ] as const;
+
+          listFields.forEach((key) => {
+            aggregatedAnalysis[key] = [...new Set(aggregatedAnalysis[key])];
           });
 
           sendEvent('vision_complete', { aggregatedAnalysis });
@@ -126,6 +159,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           sendEvent('story_start', {});
 
           const storyResult = await generateStory(aggregatedAnalysis);
+
+          // Never persist a half-written journal entry: a short narrative means the
+          // model stopped early, so fail loudly and let the user retry instead.
+          if (storyResult.fullStory.trim().length < 200) {
+            throw new Error('Story generation returned an incomplete narrative');
+          }
 
           sendEvent('story_complete', storyResult);
 

@@ -85,6 +85,10 @@ async function runStoryTest() {
       'Quiet solitude and finding stillness away from the noise',
       'A rewarding vantage point watching the valley wake up',
     ],
+    imageDescriptions: [
+      'A narrow trail winds between moss-draped boulders under a canopy of misty pines, with faint light filtering through the fog in the distance.',
+      'A stone cairn marks the edge of a rocky overlook as pale morning light spills across a valley still buried under a layer of low cloud.',
+    ],
   };
 
   console.log('-'.repeat(60));
@@ -92,6 +96,7 @@ async function runStoryTest() {
   console.log(`• Mood:    ${sampleAnalysis.mood}`);
   console.log(`• Scenes:  ${sampleAnalysis.detectedScenes.join(', ')}`);
   console.log(`• Objects: ${sampleAnalysis.detectedObjects.join(', ')}`);
+  console.log(`• Photos:  ${sampleAnalysis.imageDescriptions.length} described`);
   console.log('-'.repeat(60));
   console.log('Sending request to Story Model with automatic retry support...\n');
 

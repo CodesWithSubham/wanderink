@@ -1,13 +1,14 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { AdventureCard } from '@/components/adventure/AdventureCard';
 import { AdventureForm } from '@/components/adventure/AdventureForm';
 import { useAuth, AuthGuard } from '@/components/providers/AuthProvider';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
-import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { AdventureResponse } from '@/types/adventure';
 import { cn } from '@/lib/utils';
@@ -16,6 +17,8 @@ function AdventureDetailContent() {
   const params = useParams();
   const adventureId = params.id as string;
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [regenerating, setRegenerating] = useState(false);
 
   const { data: adventureData, isLoading, error } = useQuery({
     queryKey: ['adventure', adventureId],
@@ -138,6 +141,14 @@ function AdventureDetailContent() {
                   View Story
                 </Button>
               </Link>
+              <Button
+                variant="outline"
+                onClick={() => setRegenerating(true)}
+                title="Generate the journal again from the original photos"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Regenerate
+              </Button>
               <Button variant="outline" onClick={handleDelete} className="text-rose-600 hover:text-rose-700 border-rose-300 hover:border-rose-500">
                 Delete
               </Button>
@@ -147,8 +158,14 @@ function AdventureDetailContent() {
       </div>
 
       {/* Story Preview or Generation Progress */}
-      {isProcessing ? (
-        <AdventureForm />
+      {(isProcessing || regenerating) ? (
+        <AdventureForm
+          resumeAdventureId={adventureId}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['adventure', adventureId] });
+            setRegenerating(false);
+          }}
+        />
       ) : adventure.status === 'failed' ? (
         <Card variant="outlined" padding="xl" className="text-center border-rose-200 dark:border-rose-800">
           <CardContent>

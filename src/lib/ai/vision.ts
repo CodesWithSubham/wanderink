@@ -1,10 +1,11 @@
 import { callVisionModel, extractJsonFromResponse, RetryOptions } from './client';
 import { VisionAnalysisResult } from '@/types/api';
 
-const VISION_SYSTEM_PROMPT = `You are an expert image analyst specializing in outdoor exploration photography. Analyze the provided images and extract structured information for creating a personalized travel journal.
+const VISION_SYSTEM_PROMPT = `You are an expert image analyst specializing in outdoor exploration photography. Analyze the provided image and extract structured information for creating a personalized travel journal.
 
 Return ONLY valid JSON with this exact structure:
 {
+  "description": "string",
   "titleSuggestions": ["string"],
   "detectedObjects": ["string"],
   "detectedScenes": ["string"],
@@ -14,12 +15,30 @@ Return ONLY valid JSON with this exact structure:
 }
 
 Guidelines:
+- description: 1-2 factual sentences describing exactly what is visible and happening in THIS photo - the setting, the main subject, and any action or moment captured. Be concrete and specific ("A narrow paved road curves between flooded emerald rice paddies under a heavy grey sky, with palm trees on the far bank."), never generic ("A beautiful landscape.").
 - titleSuggestions: 3-5 creative, evocative titles for the adventure
 - detectedObjects: Specific objects, landmarks, flora, fauna, architectural elements
 - detectedScenes: Broader scene types (e.g., "mountain trail", "urban park", "coastal path", "forest clearing")
 - mood: Single word or short phrase describing the emotional atmosphere (e.g., "serene", "adventurous", "melancholic", "vibrant", "peaceful")
 - notableDetails: Unique, specific visual details that make this adventure special (lighting, colors, textures, compositions)
-- storyElements: Narrative threads or themes that could be woven into a story (journey, discovery, reflection, connection with nature)`;
+- storyElements: Narrative threads or themes that could be woven into a story (journey, discovery, reflection, connection with nature)
+
+Output the JSON object only. Do not include any reasoning, analysis, or commentary.`;
+
+/** Builds a readable fallback description when the model omits the `description` field. */
+function deriveDescription(parsed: Partial<VisionAnalysisResult>): string {
+  const scenes = Array.isArray(parsed.detectedScenes) ? parsed.detectedScenes.slice(0, 2) : [];
+  const objects = Array.isArray(parsed.detectedObjects) ? parsed.detectedObjects.slice(0, 4) : [];
+  const details = Array.isArray(parsed.notableDetails) ? parsed.notableDetails.slice(0, 1) : [];
+
+  if (scenes.length === 0 && objects.length === 0) return 'Photo analyzed.';
+
+  const subject = objects.length > 0 ? objects.join(', ') : scenes.join(', ');
+  const place = scenes.length > 0 ? ` in a ${scenes.join(' / ')}` : '';
+  const detail = details.length > 0 ? ` Notable for ${details[0]}.` : '';
+
+  return `Featuring ${subject}${place}.${detail}`;
+}
 
 export async function analyzeImages(
   imageUrls: string[],
@@ -55,8 +74,16 @@ export async function analyzeImages(
         throw new Error('Invalid storyElements');
       }
 
-      return parsed;
-    } catch (error: any) {
+      const description =
+        typeof parsed.description === 'string' && parsed.description.trim().length > 0
+          ? parsed.description.trim()
+          : deriveDescription(parsed);
+
+      return {
+        ...parsed,
+        description: description.slice(0, 400),
+      };
+    } catch (error: unknown) {
       lastError = error instanceof Error ? error : new Error(String(error));
       if (attempt < maxRetries) {
         console.warn(

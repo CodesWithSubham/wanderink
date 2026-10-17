@@ -115,8 +115,8 @@ sequenceDiagram
     API-->>User: SSE event: vision_start
     loop For each image
         API->>AI: Vision Analysis (callVisionModel)
-        AI-->>API: Extracted objects, scenes, mood, details
-        API-->>User: SSE event: vision_progress
+        AI-->>API: Description, objects, scenes, mood, details
+        API-->>User: SSE event: vision_progress (per-photo observations)
     end
     API-->>User: SSE event: vision_complete (aggregated analysis)
 
@@ -424,12 +424,22 @@ Better Auth manages authentication sessions and accounts via `/api/auth/[...all]
 
 #### SSE Generation Stream Events (`/api/adventures/:id/generate`)
 1. `event: vision_start` — `{ totalImages: number }`
-2. `event: vision_progress` — `{ completed: number, total: number }`
-3. `event: vision_complete` — `{ aggregatedAnalysis: VisionAnalysisResult }`
+2. `event: vision_progress` — `{ completed: number, total: number, imageIndex: number, analysis?: ImageAnalysisSummary, failed?: boolean }`
+3. `event: vision_complete` — `{ aggregatedAnalysis: AggregatedVisionAnalysis }`
 4. `event: story_start` — `{}`
 5. `event: story_complete` — `StoryGenerationResult`
 6. `event: done` — `{ adventureId: string, redirectUrl: string }`
 7. `event: error` — `{ message: string }`
+
+`analysis` carries the per-photo observations (`description`, `mood`, `scenes`, `objects`, `details`)
+so the "Step 3: AI is Working" screen can show what the model perceived in each image as it
+works through them.
+
+The story call is made with `response_format: json_object` and
+`chat_template_kwargs.enable_thinking = false`. Some routed backends otherwise spend the entire
+`max_tokens` budget on their reasoning pass and return a `fullStory` that stops mid-sentence.
+Incomplete replies are rejected (rather than saved with placeholder text) and retried with a
+stricter instruction.
 
 ---
 

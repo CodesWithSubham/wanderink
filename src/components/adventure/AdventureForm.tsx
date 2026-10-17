@@ -14,14 +14,16 @@ type Step = 'upload' | 'review' | 'generating';
 
 interface AdventureFormProps {
   onSuccess?: (adventureId: string) => void;
+  /** Resume an adventure that is already generating (e.g. after a page reload). */
+  resumeAdventureId?: string;
 }
 
-export function AdventureForm({ onSuccess }: AdventureFormProps) {
+export function AdventureForm({ onSuccess, resumeAdventureId }: AdventureFormProps) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>('upload');
+  const [step, setStep] = useState<Step>(resumeAdventureId ? 'generating' : 'upload');
   const [uploadedImages, setUploadedImages] = useState<Array<{ key: string; preview: string; originalName: string }>>([]);
   const [visibility, setVisibility] = useState<'private' | 'public'>('private');
-  const [generationAdventureId, setGenerationAdventureId] = useState<string | null>(null);
+  const [generationAdventureId, setGenerationAdventureId] = useState<string | null>(resumeAdventureId ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const handleUploadComplete = useCallback(async (results: Array<{ key: string; preview: string; originalName: string }>) => {
@@ -66,13 +68,18 @@ export function AdventureForm({ onSuccess }: AdventureFormProps) {
     if (adventureId && onSuccess) {
       onSuccess(adventureId);
     }
+    // When embedded in the adventure page the redirect target is the current
+    // route, so refreshing in place is what actually surfaces the new story.
+    if (resumeAdventureId) return;
     router.push(redirectUrl);
-  }, [onSuccess, router]);
+  }, [onSuccess, router, resumeAdventureId]);
 
   const handleGenerationError = useCallback((error: string) => {
     setError(error);
-    setStep('review');
-  }, []);
+    // Keep the progress screen (and its retry button) when resuming a running
+    // adventure, since there are no uploaded previews to fall back to.
+    if (!resumeAdventureId) setStep('review');
+  }, [resumeAdventureId]);
 
   const goBack = useCallback(() => {
     if (step === 'review') setStep('upload');
@@ -190,6 +197,7 @@ export function AdventureForm({ onSuccess }: AdventureFormProps) {
 
         <GenerationProgress
           adventureId={generationAdventureId}
+          imagePreviews={uploadedImages.map((img) => img.preview)}
           onComplete={handleGenerationComplete}
           onError={handleGenerationError}
         />

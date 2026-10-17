@@ -10,6 +10,12 @@ export interface ChatCompletionRequest {
   max_tokens?: number;
   response_format?: { type: 'json_object' };
   stream?: boolean;
+  /**
+   * Ask reasoning-capable backends to skip their "thinking" pass. Without this the
+   * upstream model can burn the whole `max_tokens` budget on reasoning and return a
+   * reply that is cut off mid-sentence (or nothing but its thought process).
+   */
+  chat_template_kwargs?: { enable_thinking?: boolean };
 }
 
 export interface ChatCompletionResponse {
@@ -213,6 +219,90 @@ export function sanitizeJsonString(jsonStr: string): string {
 }
 
 /**
+ * Collects every balanced top-level `{ ... }` block from a raw LLM response.
+ * Braces that appear inside JSON string values are ignored, so reasoning
+ * preambles containing braces no longer corrupt the nesting count.
+ */
+export function collectJsonCandidates(text: string): string[] {
+  const candidates: string[] = [];
+  let depth = 0;
+  let startIdx = -1;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      if (inString) escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+
+    if (char === '{') {
+      if (depth === 0) startIdx = i;
+      depth++;
+    } else if (char === '}') {
+      if (depth > 0) {
+        depth--;
+        if (depth === 0 && startIdx !== -1) {
+          candidates.push(text.substring(startIdx, i + 1));
+          startIdx = -1;
+        }
+      }
+    }
+  }
+
+  return candidates;
+}
+
+/**
+ * True when `text` ends inside an open string or an unclosed object/array,
+ * i.e. the model stopped mid-answer (usually because it ran out of tokens).
+ */
+export function isUnterminatedJson(text: string): boolean {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let sawBrace = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      if (inString) escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+
+    if (char === '{' || char === '[') {
+      if (char === '{') sawBrace = true;
+      depth++;
+    } else if (char === '}' || char === ']') {
+      if (depth > 0) depth--;
+    }
+  }
+
+  return sawBrace && (inString || depth > 0);
+}
+
+/**
  * Repairs unclosed / truncated JSON outputs (e.g. when LLM reaches max output tokens).
  */
 export function repairTruncatedJson(jsonStr: string): string {
@@ -326,23 +416,9 @@ export function extractJsonFromResponse(raw: string): string {
   }
 
   // 3. Scan for balanced JSON objects { ... } across the text
+  // (string-aware: braces inside quoted values must not change nesting)
   const candidates: string[] = [];
-  let depth = 0;
-  let startIdx = -1;
-
-  for (let i = 0; i < cleaned.length; i++) {
-    const char = cleaned[i];
-    if (char === '{') {
-      if (depth === 0) startIdx = i;
-      depth++;
-    } else if (char === '}') {
-      depth--;
-      if (depth === 0 && startIdx !== -1) {
-        candidates.push(cleaned.substring(startIdx, i + 1));
-        startIdx = -1;
-      }
-    }
-  }
+  collectJsonCandidates(cleaned).forEach((c) => candidates.push(c));
 
   // Check candidates in reverse order (models emit the final structured output at the end)
   for (let i = candidates.length - 1; i >= 0; i--) {
@@ -437,6 +513,7 @@ export async function callVisionModel(
       temperature: 0.3,
       max_tokens: 4000,
       response_format: { type: 'json_object' },
+      chat_template_kwargs: { enable_thinking: false },
     },
     600000, // 10 minutes timeout matching nginx proxy_read_timeout
     retryOpts
@@ -460,6 +537,10 @@ export async function callStoryModel(
       messages,
       temperature: 0.3,
       max_tokens: 8192, // Generous token allowance for reasoning + story
+      response_format: { type: 'json_object' },
+      // Skip the reasoning pass: some routed backends otherwise spend the whole
+      // token budget thinking and return a story that is cut off mid-sentence.
+      chat_template_kwargs: { enable_thinking: false },
     },
     600000, // 10 minutes timeout matching nginx proxy_read_timeout
     retryOpts
