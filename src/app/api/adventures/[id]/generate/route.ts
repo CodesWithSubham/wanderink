@@ -83,18 +83,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           // Step 1: Vision analysis
           sendEvent('vision_start', { totalImages: signedImageUrls.length });
 
-          const visionResults = await Promise.all(
-            signedImageUrls.map(async (url, index) => {
-              try {
-                const result = await analyzeImages([url]);
-                sendEvent('vision_progress', { completed: index + 1, total: signedImageUrls.length });
-                return result;
-              } catch (error) {
-                console.error(`Vision analysis failed for image ${index}:`, error);
-                return null;
-              }
-            })
-          );
+          const visionResults = [];
+          for (let index = 0; index < signedImageUrls.length; index++) {
+            const url = signedImageUrls[index];
+            try {
+              const result = await analyzeImages([url]);
+              sendEvent('vision_progress', { completed: index + 1, total: signedImageUrls.length });
+              visionResults.push(result);
+            } catch (error) {
+              console.error(`Vision analysis failed for image ${index}:`, error);
+              visionResults.push(null);
+            }
+          }
 
           const validResults = visionResults.filter((r): r is NonNullable<typeof r> => r !== null);
           if (validResults.length === 0) {

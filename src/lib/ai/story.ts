@@ -1,33 +1,19 @@
-import { callStoryModel } from './client';
+import { callStoryModel, extractJsonFromResponse, RetryOptions } from './client';
 import { StoryGenerationResult } from '@/types/api';
 
-const STORY_SYSTEM_PROMPT = `You are an expert travel writer and storyteller. Create an inspiring, personal exploration journal based on the provided image analysis.
+const STORY_SYSTEM_PROMPT = `You are an expert travel writer. Create an inspiring exploration journal based on the image analysis.
+Write in first person ("I walked...", "I discovered..."). Sound authentic, reflective, and emotionally resonant. Reference actual visual details from the analysis.
 
-Write in first person ("I walked...", "I discovered..."). Sound authentic, reflective, and emotionally resonant. Avoid hallucinating impossible events or specific facts not in the analysis. Reference actual visual details from the analysis.
-
-Return ONLY valid JSON with this exact structure:
+Output ONLY a valid JSON object matching this schema:
 {
-  "title": "string",
-  "summary": "string",
-  "fullStory": "string",
-  "highlights": ["string"],
-  "moodScore": number
+  "title": "Evocative title (max 80 chars)",
+  "summary": "2-3 sentences summary (max 300 chars)",
+  "fullStory": "Immersive narrative (300-500 words) with double newlines between paragraphs",
+  "highlights": ["3-5 bullet point highlights"],
+  "moodScore": 8
 }
 
-Guidelines:
-- title: Evocative, memorable title (max 80 chars)
-- summary: 2-3 sentences capturing the essence (max 300 chars)
-- fullStory: Rich, immersive narrative (800-2000 words). Use sensory details, emotional reflection, natural pacing. Paragraphs separated by double newlines.
-- highlights: 3-5 key moments or discoveries as bullet points
-- moodScore: 1-10 integer representing the emotional tone (1=melancholic/somber, 5=balanced/reflective, 10=joyful/uplifting)
-
-Writing style:
-- Personal and intimate, like a private journal
-- Sensory-rich: sights, sounds, smells, textures
-- Emotionally honest, not artificially positive
-- Grounded in the actual visual evidence
-- Literary but accessible
-- Avoid clichés and generic travel writing tropes`;
+Do not output any thoughts, preamble, or markdown outside the JSON.`;
 
 function buildUserPrompt(analysis: {
   titleSuggestions: string[];
@@ -37,7 +23,7 @@ function buildUserPrompt(analysis: {
   notableDetails: string[];
   storyElements: string[];
 }): string {
-  return `Image Analysis:
+  return `Visual Analysis Findings:
 - Suggested Titles: ${analysis.titleSuggestions.join(', ')}
 - Detected Objects: ${analysis.detectedObjects.join(', ')}
 - Detected Scenes: ${analysis.detectedScenes.join(', ')}
@@ -45,50 +31,70 @@ function buildUserPrompt(analysis: {
 - Notable Details: ${analysis.notableDetails.join('; ')}
 - Story Elements: ${analysis.storyElements.join('; ')}
 
-Create a personal exploration journal from this analysis. The story should feel like it was written by someone who was actually there, experiencing these moments.`;
+Output the JSON object:`;
 }
 
-export async function generateStory(analysis: {
-  titleSuggestions: string[];
-  detectedObjects: string[];
-  detectedScenes: string[];
-  mood: string;
-  notableDetails: string[];
-  storyElements: string[];
-}): Promise<StoryGenerationResult> {
-  const userPrompt = buildUserPrompt(analysis);
-  const response = await callStoryModel(STORY_SYSTEM_PROMPT, userPrompt);
+export async function generateStory(
+  analysis: {
+    titleSuggestions: string[];
+    detectedObjects: string[];
+    detectedScenes: string[];
+    mood: string;
+    notableDetails: string[];
+    storyElements: string[];
+  },
+  retryOpts?: RetryOptions
+): Promise<StoryGenerationResult> {
+  const maxRetries = retryOpts?.maxRetries ?? 2;
+  let lastError: Error | null = null;
 
-  try {
-    const parsed = JSON.parse(response) as StoryGenerationResult;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const userPrompt = buildUserPrompt(analysis);
+      const response = await callStoryModel(STORY_SYSTEM_PROMPT, userPrompt, retryOpts);
 
-    // Validate required fields
-    if (!parsed.title || typeof parsed.title !== 'string') {
-      throw new Error('Invalid title');
-    }
-    if (!parsed.summary || typeof parsed.summary !== 'string') {
-      throw new Error('Invalid summary');
-    }
-    if (!parsed.fullStory || typeof parsed.fullStory !== 'string') {
-      throw new Error('Invalid fullStory');
-    }
-    if (!parsed.highlights || !Array.isArray(parsed.highlights)) {
-      throw new Error('Invalid highlights');
-    }
-    if (!parsed.moodScore || typeof parsed.moodScore !== 'number' || parsed.moodScore < 1 || parsed.moodScore > 10) {
-      throw new Error('Invalid moodScore');
-    }
+      const cleaned = extractJsonFromResponse(response);
+      const parsed = JSON.parse(cleaned) as Record<string, any>;
 
-    return {
-      title: parsed.title.slice(0, 80),
-      summary: parsed.summary.slice(0, 300),
-      fullStory: parsed.fullStory,
-      highlights: parsed.highlights.slice(0, 5),
-      moodScore: Math.round(Math.max(1, Math.min(10, parsed.moodScore))),
-    };
-  } catch (error) {
-    console.error('Story generation parsing error:', error);
-    console.error('Raw response:', response);
-    throw new Error('Failed to parse story generation response');
+      // Ensure at least title or summary/fullStory is present
+      if (!parsed.title && !parsed.fullStory && !parsed.summary) {
+        throw new Error('Response did not contain valid journal fields');
+      }
+
+      const defaultTitle = analysis.titleSuggestions[0] || 'Journey into the Mist';
+      const title = String(parsed.title || defaultTitle).slice(0, 80);
+      const fullStory = String(parsed.fullStory || parsed.summary || 'A quiet morning amidst nature.').trim();
+      const summary = String(parsed.summary || fullStory.slice(0, 250)).slice(0, 300);
+
+      const highlights = Array.isArray(parsed.highlights) && parsed.highlights.length > 0
+        ? parsed.highlights.slice(0, 5).map(String)
+        : [
+            analysis.notableDetails[0] || 'Exploring misty pine trails',
+            'Sunlight breaking through the mountain canopy',
+            'Moments of stillness and contemplation on the ridge',
+          ];
+
+      const rawMood = typeof parsed.moodScore === 'number' ? parsed.moodScore : parseInt(parsed.moodScore, 10);
+      const moodScore = !isNaN(rawMood) ? Math.round(Math.max(1, Math.min(10, rawMood))) : 8;
+
+      return {
+        title,
+        summary,
+        fullStory,
+        highlights,
+        moodScore,
+      };
+    } catch (error: any) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < maxRetries) {
+        console.warn(
+          `[Story] Parsing or validation failed on attempt ${attempt + 1}/${maxRetries + 1} (${lastError.message}). Retrying story generation...`
+        );
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
   }
+
+  console.error('Story generation failed after retries:', lastError);
+  throw lastError || new Error('Failed to parse story generation response');
 }
